@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人健康管理系统</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+<script src="https://unpkg.com/element-plus"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  body { background-color: #f0f2f5; margin: 0; font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #app { max-width: 850px; margin: 0 auto; padding: 20px; padding-bottom: 50px; }
+  .header { text-align: center; margin-bottom: 24px; color: #303133; }
+  .card { margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: none; }
+  .chart-container { width: 100%; height: 300px; margin-top: 20px; }
+  
+  /* BMI 展示区 */
+  .bmi-box { margin-top: 15px; padding: 20px; background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: space-around; border: 1px solid #ebeef5; }
+  .bmi-info { text-align: center; }
+  .bmi-val { font-size: 28px; font-weight: bold; display: block; margin-bottom: 8px; }
+  .bmi-avatar { width: 100px; height: 140px; display: flex; align-items: center; justify-content: center; }
+  .bmi-avatar svg { width: 100%; height: 100%; transition: all 0.3s ease; }
+
+  /* 建议卡片 */
+  .advice-card { background: #f0f9eb; border-left: 5px solid #67C23A; margin-top: 15px; padding: 15px; border-radius: 4px; }
+  .advice-card.warning { background: #fdf6ec; border-left-color: #E6A23C; }
+  .advice-card.danger { background: #fef0f0; border-left-color: #F56C6C; }
+  .advice-title { font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;}
+  .advice-list { margin: 0; padding-left: 20px; font-size: 14px; color: #555; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <h2>🏃 个人健康管理系统</h2>
+  </div>
+
+  <el-card class="card">
+    <template #header><span>📝 指标一键录入</span></template>
+    <el-form :inline="true" :model="formData">
+      <el-form-item label="身高(cm)">
+        <el-input-number v-model="formData.height" :step="1" :min="0" @change="updateAdvice"></el-input-number>
+      </el-form-item>
+      <el-form-item label="体重(kg)">
+        <el-input-number v-model="formData.weight" :step="0.1" :min="0" @change="updateAdvice"></el-input-number>
+      </el-form-item>
+      <el-form-item label="收缩压(mmHg)">
+        <el-input-number v-model="formData.sbp" :step="1" :min="0" @change="updateAdvice"></el-input-number>
+      </el-form-item>
+      <el-form-item label="舒张压(mmHg)">
+        <el-input-number v-model="formData.dbp" :step="1" :min="0" @change="updateAdvice"></el-input-number>
+      </el-form-item>
+      <el-form-item label="血糖(mmol/L)">
+        <el-input-number v-model="formData.sugar" :step="0.1" :min="0" @change="updateAdvice"></el-input-number>
+      </el-form-item>
+      <el-form-item label="心率(次/分)">
+        <el-input-number v-model="formData.heart" :step="1" :min="0" @change="updateAdvice"></el-input-number>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="submitData">保存记录</el-button>
+      </el-form-item>
+    </el-form>
+
+    <!-- BMI 展示与图形 -->
+    <div class="bmi-box" v-if="formData.height > 0 && formData.weight > 0">
+      <div class="bmi-info">
+        <span class="bmi-val" :style="{ color: bmiStatus.color }">{{ bmiValue }}</span>
+        <el-tag :type="bmiStatus.type" effect="dark" size="large">{{ bmiStatus.text }}</el-tag>
+      </div>
+      <div class="bmi-avatar">
+        <!-- 偏瘦 -->
+        <svg v-if="bmiStatus.text === '偏瘦'" viewBox="0 0 100 150">
+          <circle cx="50" cy="20" r="12" fill="#E6A23C"/>
+          <line x1="50" y1="32" x2="50" y2="80" stroke="#E6A23C" stroke-width="8" stroke-linecap="round"/>
+          <line x1="50" y1="45" x2="30" y2="70" stroke="#E6A23C" stroke-width="5" stroke-linecap="round"/>
+          <line x1="50" y1="45" x2="70" y2="70" stroke="#E6A23C" stroke-width="5" stroke-linecap="round"/>
+          <line x1="50" y1="80" x2="35" y2="130" stroke="#E6A23C" stroke-width="6" stroke-linecap="round"/>
+          <line x1="50" y1="80" x2="65" y2="130" stroke="#E6A23C" stroke-width="6" stroke-linecap="round"/>
+        </svg>
+        <!-- 正常 -->
+        <svg v-else-if="bmiStatus.text === '正常'" viewBox="0 0 100 150">
+          <circle cx="50" cy="22" r="13" fill="#67C23A"/>
+          <path d="M 35 40 Q 50 35 65 40 L 65 85 Q 50 88 35 85 Z" fill="#67C23A"/>
+          <line x1="35" y1="45" x2="20" y2="75" stroke="#67C23A" stroke-width="7" stroke-linecap="round"/>
+          <line x1="65" y1="45" x2="80" y2="75" stroke="#67C23A" stroke-width="7" stroke-linecap="round"/>
+          <path d="M 40 85 L 35 135" stroke="#67C23A" stroke-width="9" stroke-linecap="round"/>
+          <path d="M 60 85 L 65 135" stroke="#67C23A" stroke-width="9" stroke-linecap="round"/>
+        </svg>
+        <!-- 超重 -->
+        <svg v-else-if="bmiStatus.text === '超重'" viewBox="0 0 100 150">
+          <circle cx="50" cy="24" r="14" fill="#E6A23C"/>
+          <ellipse cx="50" cy="65" rx="25" ry="30" fill="#E6A23C"/>
+          <line x1="28" y1="50" x2="15" y2="85" stroke="#E6A23C" stroke-width="8" stroke-linecap="round"/>
+          <line x1="72" y1="50" x2="85" y2="85" stroke="#E6A23C" stroke-width="8" stroke-linecap="round"/>
+          <line x1="35" y1="90" x2="30" y2="135" stroke="#E6A23C" stroke-width="10" stroke-linecap="round"/>
+          <line x1="65" y1="90" x2="70" y2="135" stroke="#E6A23C" stroke-width="10" stroke-linecap="round"/>
+        </svg>
+        <!-- 肥胖 -->
+        <svg v-else viewBox="0 0 100 150">
+          <circle cx="50" cy="26" r="15" fill="#F56C6C"/>
+          <ellipse cx="50" cy="70" rx="35" ry="40" fill="#F56C6C"/>
+          <line x1="20" y1="55" x2="5" y2="90" stroke="#F56C6C" stroke-width="9" stroke-linecap="round"/>
+          <line x1="80" y1="55" x2="95" y2="90" stroke="#F56C6C" stroke-width="9" stroke-linecap="round"/>
+          <line x1="30" y1="100" x2="25" y2="140" stroke="#F56C6C" stroke-width="12" stroke-linecap="round"/>
+          <line x1="70" y1="100" x2="75" y2="140" stroke="#F56C6C" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+  </el-card>
+
+  <!-- 智能建议卡片 -->
+  <el-card class="card" v-if="adviceList.length > 0">
+    <template #header><span>💡 专属饮食与运动建议</span></template>
+    <div :class="['advice-card', overallAdviceType]">
+      <div class="advice-title">
+        <el-icon><Bell /></el-icon> 基于你当前的数据，系统给出如下建议：
+      </div>
+      <ul class="advice-list">
+        <li v-for="(item, index) in adviceList" :key="index" style="margin-bottom: 6px;">{{ item }}</li>
+      </ul>
+    </div>
+  </el-card>
+
+  <el-card class="card">
+    <template #header>
+      <div class="card-header">
+        <span>📈 趋势图表</span>
+        <el-select v-model="chartType" size="small" style="width: 120px" @change="renderChart">
+          <el-option label="体重趋势" value="weight"></el-option>
+          <el-option label="血压趋势" value="bp"></el-option>
+        </el-select>
+      </div>
+    </template>
+    <div id="mainChart" class="chart-container"></div>
+  </el-card>
+</div>
+
+<script>
+const { createApp, ref, onMounted, reactive, computed } = Vue;
+const { ElMessage } = ElementPlus;
+
+createApp({
+  setup() {
+    const formData = reactive({
+      height: 175, weight: 65.0, sbp: 120, dbp: 80, sugar: 5.5, heart: 75
+    });
+    const chartType = ref('weight');
+    const adviceList = ref([]);
+    const overallAdviceType = ref('');
+    let myChart = null;
+    let historyData = [{ date: '11-20', weight: 66.2, sbp: 125, dbp: 82 }, { date: '11-21', weight: 65.8, sbp: 118, dbp: 79 }];
+
+    const bmiValue = computed(() => {
+      if (!formData.height || !formData.weight) return 0;
+      const h = formData.height / 100;
+      return (formData.weight / (h * h)).toFixed(1);
+    });
+
+    const bmiStatus = computed(() => {
+      const b = parseFloat(bmiValue.value);
+      if (b < 18.5) return { text: '偏瘦', type: 'warning', color: '#E6A23C' };
+      if (b >= 18.5 && b < 24) return { text: '正常', type: 'success', color: '#67C23A' };
+      if (b >= 24 && b < 28) return { text: '超重', type: 'warning', color: '#E6A23C' };
+      return { text: '肥胖', type: 'danger', color: '#F56C6C' };
+    });
+
+    // 🧠 核心逻辑：健康建议引擎
+    const updateAdvice = () => {
+      let advices = [];
+      let isDanger = false;
+      let isWarning = false;
+      const b = parseFloat(bmiValue.value);
+
+      // 1. BMI & 体重建议
+      if (b > 0 && b < 18.5) {
+        advices.push("【饮食】偏瘦建议：增加优质蛋白（鸡蛋、牛奶、瘦肉）和碳水摄入，少食多餐，避免过度节食。");
+        advices.push("【运动】运动建议：减少长时间有氧运动，增加抗阻力训练（如举铁、深蹲）来增加肌肉量。");
+        isWarning = true;
+      } else if (b >= 24 && b < 28) {
+        advices.push("【饮食】超重建议：控制总热量，减少精米面和高糖食物，多吃蔬菜和粗粮，保持适当饱腹感。");
+        advices.push("【运动】运动建议：每周安排 3-4 次中等强度有氧（如快走、慢跑、游泳），每次 40 分钟以上。");
+        isWarning = true;
+      } else if (b >= 28) {
+        advices.push("【饮食】肥胖建议：严格执行低脂低糖饮食，建议先咨询营养科医生制定详细食谱。");
+        advices.push("【运动】运动建议：初期避免剧烈跑跳以保护膝盖，建议从快步走、游泳或骑车开始，循序渐进。");
+        isDanger = true;
+      } else if (b >= 18.5 && b < 24) {
+        advices.push("【饮食】体重正常：保持目前均衡饮食，多喝水，规律作息。");
+        advices.push("【运动】运动建议：保持每周 150 分钟中等强度运动，维持良好体型。");
+      }
+
+      // 2. 血压建议
+      if (formData.sbp >= 140 || formData.dbp >= 90) {
+        advices.push("【饮食】血压偏高：务必严格控制盐分摄入（每天<5g），少吃腌制食品，多吃含钾食物（香蕉、菠菜）。");
+        advices.push("【运动】血压偏高：避免憋气发力的运动（如大重量举铁），推荐太极拳、慢走等舒缓运动。");
+        isDanger = true;
+      } else if (formData.sbp >= 130 || formData.dbp >= 85) {
+        advices.push("【血压】处于正常高值边缘：注意清淡饮食，控制情绪，少熬夜。");
+        isWarning = true;
+      }
+
+      // 3. 血糖建议
+      if (formData.sugar > 6.1) {
+        advices.push("【饮食】血糖偏高：严格控制主食量，用粗粮替换一半白米饭，避免饮用含糖饮料，先吃菜再吃饭。");
+        advices.push("【运动】血糖偏高：建议餐后 1 小时进行 20-30 分钟散步，有助于平稳餐后血糖。");
+        isDanger = true;
+      }
+
+      // 4. 心率建议
+      if (formData.heart > 100) {
+        advices.push("【心率】心动过速：建议静坐休息后复测，如持续偏高请排查是否熬夜、喝浓茶咖啡或存在健康问题。");
+        isWarning = true;
+      } else if (formData.heart < 60) {
+        advices.push("【心率】心动过缓：如果你不是专业运动员，且伴随头晕乏力，建议去医院心内科做个心电图检查。");
+        isWarning = true;
+      }
+
+      adviceList.value = advices;
+      overallAdviceType.value = isDanger ? 'danger' : (isWarning ? 'warning' : '');
+    };
+
+    const submitData = () => {
+      ElMessage.success('记录保存成功！');
+      const today = new Date().toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace('/', '-');
+      historyData.push({ date: today, ...formData });
+      renderChart();
+    };
+
+    const renderChart = () => {
+      if (!myChart) myChart = echarts.init(document.getElementById('mainChart'));
+      let series = [];
+      if (chartType.value === 'weight') {
+        series = [{ name: '体重', type: 'line', smooth: true, data: historyData.map(d => d.weight), itemStyle: { color: '#67C23A' } }];
+      } else {
+        series = [
+          { name: '收缩压', type: 'line', data: historyData.map(d => d.sbp), itemStyle: { color: '#F56C6C' } },
+          { name: '舒张压', type: 'line', data: historyData.map(d => d.dbp), itemStyle: { color: '#E6A23C' } }
+        ];
+      }
+      myChart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', boundaryGap: false, data: historyData.map(d => d.date) },
+        yAxis: { type: 'value' },
+        series: series
+      }, true);
+    };
+
+    onMounted(() => {
+      updateAdvice();
+      renderChart();
+      window.addEventListener('resize', () => myChart && myChart.resize());
+    });
+
+    return { formData, chartType, adviceList, overallAdviceType, updateAdvice, submitData, renderChart, bmiValue, bmiStatus };
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>
