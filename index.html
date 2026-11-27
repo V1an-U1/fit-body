@@ -2,258 +2,568 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>个人健康管理系统</title>
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
-<script src="https://unpkg.com/element-plus"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>体态云 - 健康管理</title>
+<script src="https://cdn.staticfile.org/vue/3.3.4/vue.global.prod.min.js"></script>
+<link rel="stylesheet" href="https://cdn.staticfile.org/element-plus/2.3.14/index.css" />
+<script src="https://cdn.staticfile.org/element-plus/2.3.14/index.full.min.js"></script>
+<script src="https://cdn.staticfile.org/echarts/5.4.3/echarts.min.js"></script>
 <style>
-  body { background-color: #f0f2f5; margin: 0; font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Microsoft YaHei", sans-serif; }
-  #app { max-width: 850px; margin: 0 auto; padding: 20px; padding-bottom: 50px; }
-  .header { text-align: center; margin-bottom: 24px; color: #303133; }
-  .card { margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: none; }
-  .chart-container { width: 100%; height: 300px; margin-top: 20px; }
+  :root { 
+    /* 核心粉色主题变量 */
+    --bg-color: #fdf2f8; /* 极浅樱花粉背景 */
+    --card-bg: #ffffff; 
+    --text-main: #3b1b2b; /* 深紫褐色，比纯黑更柔和 */
+    --text-sub: #a87a8c; /* 灰粉色文字 */
+    --primary: #f472b6; /* 主粉色 */
+    --danger: #ef4444; 
+    --warning: #f59e0b; 
+    --blue: #60a5fa; /* 喝水保留淡蓝色做对比 */
+    --radius: 24px;
+    
+    /* 覆盖 Element Plus 的主色调 */
+    --el-color-primary: #f472b6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background-color: var(--bg-color); font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif; color: var(--text-main); padding: 16px; }
+  #app { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(130px, auto); gap: 16px; }
   
-  /* BMI 展示区 */
-  .bmi-box { margin-top: 15px; padding: 20px; background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: space-around; border: 1px solid #ebeef5; }
-  .bmi-info { text-align: center; }
-  .bmi-val { font-size: 28px; font-weight: bold; display: block; margin-bottom: 8px; }
-  .bmi-avatar { width: 100px; height: 140px; display: flex; align-items: center; justify-content: center; }
-  .bmi-avatar svg { width: 100%; height: 100%; transition: all 0.3s ease; }
+  .bento-card { background: var(--card-bg); border-radius: var(--radius); padding: 20px; box-shadow: 0 4px 20px rgba(244, 114, 182, 0.08); display: flex; flex-direction: column; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid rgba(244, 114, 182, 0.1); }
+  .bento-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(244, 114, 182, 0.15); }
+  
+  .card-title { font-size: 14px; font-weight: 600; color: var(--text-sub); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;}
+  .big-number { font-size: 32px; font-weight: 700; letter-spacing: -1px; color: var(--text-main); }
+  .unit { font-size: 14px; font-weight: 500; color: var(--text-sub); margin-left: 4px; }
+  
+  /* 布局分配 */
+  .card-profile { grid-column: span 2; grid-row: span 2; background: linear-gradient(135deg, #f472b6, #db2777); color: white; justify-content: space-between; border: none; }
+  .card-profile .name { font-size: 28px; font-weight: bold; letter-spacing: 2px;}
+  .card-profile .height { font-size: 16px; opacity: 0.9; margin-top: 8px;}
+  .btn-add { background: white; color: #db2777; border: none; border-radius: 100px; padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .btn-add:hover { background: #fdf2f8; transform: scale(0.98); }
+  
+  .card-weight { grid-column: span 2; grid-row: span 2; }
+  .bmi-avatar { position: absolute; right: 20px; bottom: 10px; width: 80px; height: 110px; opacity: 0.9;}
+  .card-small { grid-column: span 1; grid-row: span 1; }
+  .card-wide { grid-column: span 2; grid-row: span 1; }
+  .card-advice { grid-column: span 4; background: #fff0f6; border: 1px solid #fbcfe8; }
+  
+  /* 图表大卡片 */
+  .card-chart { grid-column: span 4; grid-row: span 2; }
+  .chart-container { width: 100%; height: 260px; margin-top: 10px; }
 
-  /* 建议卡片 */
-  .advice-card { background: #f0f9eb; border-left: 5px solid #67C23A; margin-top: 15px; padding: 15px; border-radius: 4px; }
-  .advice-card.warning { background: #fdf6ec; border-left-color: #E6A23C; }
-  .advice-card.danger { background: #fef0f0; border-left-color: #F56C6C; }
-  .advice-title { font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;}
-  .advice-list { margin: 0; padding-left: 20px; font-size: 14px; color: #555; line-height: 1.6; }
+  /* 打卡日历卡片 */
+  .card-calendar { grid-column: span 2; background: linear-gradient(to right bottom, #ffffff, #fff0f6); }
+  .card-calendar::before { content: '🌸'; font-size: 100px; position: absolute; bottom: -20px; right: -10px; opacity: 0.1; transform: rotate(-15deg); pointer-events: none; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; text-align: center; position: relative; z-index: 1; }
+  .cal-header { font-size: 12px; color: #d8b4c4; font-weight: bold; margin-bottom: 4px; }
+  .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 13px; color: var(--text-main); position: relative; transition: all 0.2s; cursor: pointer; }
+  .cal-day:hover { background: #fdf2f8; }
+  .cal-day.active { background: var(--primary); color: white; font-weight: bold; box-shadow: 0 2px 8px rgba(244, 114, 182, 0.3); font-size: 18px; }
+  .cal-day.today { border: 2px solid var(--primary); color: var(--primary); font-weight: bold; }
+  .cal-day.empty { visibility: hidden; cursor: default; }
+  
+  .quote-box { margin-top: 16px; padding: 12px; background: #fdf2f8; border-radius: 12px; color: #be185d; font-size: 13px; font-style: italic; display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; border: 1px dashed #fbcfe8; }
+
+  /* 饮食打卡卡片 */
+  .card-diet { grid-column: span 2; }
+  .diet-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+  .diet-item { flex: 0 0 100px; background: #fdf2f8; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #fbcfe8; }
+  .diet-img { width: 100%; height: 80px; object-fit: cover; background: #fce7f3; }
+  .diet-info { padding: 6px; font-size: 11px; }
+  .diet-info .type { font-weight: bold; color: #db2777; }
+  .diet-info .desc { color: #831843; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .diet-del { position: absolute; top: 4px; right: 4px; background: rgba(219, 39, 119, 0.7); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; }
+
+  /* 自定义心情选择器 */
+  .mood-selector { display: flex; justify-content: space-between; gap: 8px; width: 100%; }
+  .mood-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; border-radius: 12px; border: 2px solid #fce7f3; background: #fdf2f8; cursor: pointer; transition: all 0.2s; }
+  .mood-item:hover { background: #fce7f3; }
+  .mood-item.active { background: #fff0f6; border-color: var(--primary); box-shadow: 0 2px 8px rgba(244,114,182,0.2); }
+  .mood-item .emoji { font-size: 24px; margin-bottom: 6px; }
+  .mood-item .label { font-size: 12px; color: var(--text-sub); font-weight: 500; }
+
+  .advice-text { font-size: 14px; line-height: 1.6; color: #831843; margin-bottom: 8px;}
+  .emoji-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .emoji-item { font-size: 24px; background: #fce7f3; padding: 6px; border-radius: 12px; display: flex; align-items: center; }
+  .data-actions { grid-column: span 4; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+  
+  /* 喝水卡片微调 */
+  .card-water { background: #f0f9ff; border: 1px solid #e0f2fe; }
+  
+  @media (max-width: 600px) {
+    #app { grid-template-columns: repeat(2, 1fr); }
+    .card-profile { grid-column: span 2; grid-row: span 2; }
+    .card-weight { grid-column: span 2; grid-row: span 2; }
+    .card-small { grid-column: span 1; }
+    .card-chart { grid-column: span 2; }
+    .card-advice { grid-column: span 2; }
+    .card-diet { grid-column: span 2; }
+    .card-calendar { grid-column: span 2; }
+    .big-number { font-size: 28px; }
+  }
 </style>
 </head>
 <body>
-<div id="app">
-  <div class="header">
-    <h2>🏃 个人健康管理系统</h2>
+<div id="app" v-cloak>
+  <div class="bento-card card-profile">
+    <div>
+      <div class="name">🌸 体态云</div>
+      <div class="height">身高：{{ formData.height }} cm</div>
+    </div>
+    <button class="btn-add" @click="openHealthDialog()">+ 一键记录数据</button>
   </div>
 
-  <el-card class="card">
-    <template #header><span>📝 指标一键录入</span></template>
-    <el-form :inline="true" :model="formData">
-      <el-form-item label="身高(cm)">
-        <el-input-number v-model="formData.height" :step="1" :min="0" @change="updateAdvice"></el-input-number>
+  <div class="bento-card card-weight">
+    <div class="card-title">⚖️ 体重与 BMI</div>
+    <div><span class="big-number" :style="{ color: bmiStatus.color }">{{ formData.weight }}</span><span class="unit">kg</span></div>
+    <div style="margin-top: 5px;"><el-tag :type="bmiStatus.type" effect="dark" round style="border:none;">{{ bmiStatus.text }} {{ bmiValue }}</el-tag></div>
+    <div class="bmi-avatar">
+      <!-- 保留小人的逻辑，但在粉色主题下稍微调色 -->
+      <svg v-if="bmiStatus.text === '偏瘦'" viewBox="0 0 100 150"><circle cx="50" cy="20" r="12" fill="#f472b6"/><line x1="50" y1="32" x2="50" y2="80" stroke="#f472b6" stroke-width="8" stroke-linecap="round"/><line x1="50" y1="45" x2="30" y2="70" stroke="#f472b6" stroke-width="5" stroke-linecap="round"/><line x1="50" y1="45" x2="70" y2="70" stroke="#f472b6" stroke-width="5" stroke-linecap="round"/><line x1="50" y1="80" x2="35" y2="130" stroke="#f472b6" stroke-width="6" stroke-linecap="round"/><line x1="50" y1="80" x2="65" y2="130" stroke="#f472b6" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg v-else-if="bmiStatus.text === '正常'" viewBox="0 0 100 150"><circle cx="50" cy="22" r="13" fill="#34c759"/><path d="M 35 40 Q 50 35 65 40 L 65 85 Q 50 88 35 85 Z" fill="#34c759"/><line x1="35" y1="45" x2="20" y2="75" stroke="#34c759" stroke-width="7" stroke-linecap="round"/><line x1="65" y1="45" x2="80" y2="75" stroke="#34c759" stroke-width="7" stroke-linecap="round"/><path d="M 40 85 L 35 135" stroke="#34c759" stroke-width="9" stroke-linecap="round"/><path d="M 60 85 L 65 135" stroke="#34c759" stroke-width="9" stroke-linecap="round"/></svg>
+      <svg v-else-if="bmiStatus.text === '超重'" viewBox="0 0 100 150"><circle cx="50" cy="24" r="14" fill="#f59e0b"/><ellipse cx="50" cy="65" rx="25" ry="30" fill="#f59e0b"/><line x1="28" y1="50" x2="15" y2="85" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"/><line x1="72" y1="50" x2="85" y2="85" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"/><line x1="35" y1="90" x2="30" y2="135" stroke="#f59e0b" stroke-width="10" stroke-linecap="round"/><line x1="65" y1="90" x2="70" y2="135" stroke="#f59e0b" stroke-width="10" stroke-linecap="round"/></svg>
+      <svg v-else viewBox="0 0 100 150"><circle cx="50" cy="26" r="15" fill="#ef4444"/><ellipse cx="50" cy="70" rx="35" ry="40" fill="#ef4444"/><line x1="20" y1="55" x2="5" y2="90" stroke="#ef4444" stroke-width="9" stroke-linecap="round"/><line x1="80" y1="55" x2="95" y2="90" stroke="#ef4444" stroke-width="9" stroke-linecap="round"/><line x1="30" y1="100" x2="25" y2="140" stroke="#ef4444" stroke-width="12" stroke-linecap="round"/><line x1="70" y1="100" x2="75" y2="140" stroke="#ef4444" stroke-width="12" stroke-linecap="round"/></svg>
+    </div>
+  </div>
+
+  <div class="bento-card card-wide">
+    <div class="card-title">🩸 血压 / 血糖</div>
+    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <div class="big-number" :style="{ color: (formData.sbp >= 140 || formData.dbp >= 90) ? 'var(--danger)' : 'var(--text-main)' }">{{ formData.sbp }}<span class="unit">/{{ formData.dbp }}</span></div>
+        <div style="font-size: 12px; color: var(--text-sub); margin-top: 4px;">mmHg</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="big-number" :style="{ color: formData.sugar > 6.1 ? 'var(--danger)' : 'var(--text-main)' }">{{ formData.sugar }}</div>
+        <div style="font-size: 12px; color: var(--text-sub); margin-top: 4px;">血糖 mmol/L</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bento-card card-small">
+    <div class="card-title">❤️ 心率</div>
+    <div class="big-number" :style="{ color: (formData.heart > 100 || formData.heart < 60) ? 'var(--warning)' : 'var(--text-main)' }">{{ formData.heart }}<span class="unit">bpm</span></div>
+  </div>
+
+  <div class="bento-card card-small card-water">
+    <div class="card-title">💧 喝水</div>
+    <div class="big-number" style="color: var(--blue)">{{ formData.water }}<span class="unit">ml</span></div>
+    <el-progress :percentage="Math.min((formData.water/2000)*100, 100)" :show-text="false" color="#60a5fa" style="margin-top: 8px;"></el-progress>
+    <div style="margin-top: auto; display: flex; gap: 6px;">
+      <el-button size="small" plain style="flex:1; border-radius: 8px; color: #60a5fa; border-color: #bfdbfe;" @click="changeWater(-250)">-250</el-button>
+      <el-button size="small" style="flex:1; border-radius: 8px; background: #60a5fa; border-color: #60a5fa;" @click="changeWater(250)">+250</el-button>
+    </div>
+  </div>
+
+  <div class="bento-card card-chart">
+    <div class="card-title">
+      <span>📈 历史趋势对比</span>
+      <el-radio-group v-model="chartType" size="small" @change="renderChart">
+        <el-radio-button label="weight">体重</el-radio-button>
+        <el-radio-button label="bp">血压</el-radio-button>
+        <el-radio-button label="sugar">血糖</el-radio-button>
+        <el-radio-button label="water">喝水</el-radio-button>
+      </el-radio-group>
+    </div>
+    <div id="mainChart" class="chart-container"></div>
+  </div>
+
+  <div class="bento-card card-calendar">
+    <div class="card-title">
+      <span>📅 我的健康坚持</span>
+      <span style="font-size: 12px; color: #db2777;">已打卡 {{ checkInDays.length }} 天</span>
+    </div>
+    <div class="calendar-grid">
+      <div class="cal-header" v-for="d in ['一','二','三','四','五','六','日']">{{ d }}</div>
+      <div v-for="(day, index) in calendarDays" :key="index" 
+           :class="['cal-day', { active: getMoodForDay(day), today: isToday(day), empty: !day }]"
+           @click="day && openHealthDialog(day)">
+        <template v-if="getMoodForDay(day)">{{ getMoodForDay(day) }}</template>
+        <template v-else>{{ day }}</template>
+      </div>
+    </div>
+    <div class="quote-box" v-if="currentQuote">
+      <span style="font-size: 20px;">✨</span>
+      <span>{{ currentQuote }}</span>
+    </div>
+  </div>
+
+  <div class="bento-card card-diet">
+    <div class="card-title">
+      <span>🍱 饮食拍照打卡</span>
+      <el-button size="small" type="primary" @click="openDietDialog">📷 拍/选照片</el-button>
+    </div>
+    <div v-if="dietList.length === 0" style="font-size: 13px; color: #d8b4c4; text-align: center; padding: 20px;">拍下今天的美食吧！</div>
+    <div class="diet-scroll" v-else>
+      <div class="diet-item" v-for="item in dietList" :key="item.id">
+        <div class="diet-del" @click="delDiet(item.id)">×</div>
+        <img :src="item.image" class="diet-img" />
+        <div class="diet-info">
+          <div class="type">{{ item.type }} <span style="font-size: 11px; color: #a87a8c; font-weight: normal;">{{ item.time }}</span></div>
+          <div class="desc">{{ item.desc }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bento-card card-advice">
+    <div class="card-title">💡 身体状况与饮食建议</div>
+    <ul class="advice-text" style="padding-left: 20px;"><li v-for="(item, index) in adviceList" :key="index">{{ item }}</li></ul>
+    <div class="emoji-row" v-if="foodRecommendations.recommend.length > 0">
+      <span style="font-size: 14px; font-weight: bold; color: #be185d; line-height: 38px; margin-right: 8px;">推荐：</span>
+      <div class="emoji-item" v-for="item in foodRecommendations.recommend" :key="item.name">{{ item.emoji }} <span style="font-size:12px; margin-left:4px;">{{ item.name }}</span></div>
+    </div>
+  </div>
+
+  <div class="data-actions">
+    <el-button size="small" plain style="color: #db2777; border-color: #fbcfe8;" @click="exportData">📥 备份数据</el-button>
+    <el-button size="small" style="background: #f472b6; border-color: #f472b6;" @click="triggerImport">📤 恢复数据</el-button>
+    <input type="file" id="fileInput" style="display:none" accept=".json" @change="importData">
+  </div>
+
+  <!-- 记录数据弹窗 -->
+  <el-dialog v-model="dialogVisible" title="📝 记录数据" width="90%" style="max-width: 400px; border-radius: 20px;">
+    <el-form :label-position="'top'" :model="formData">
+      
+      <el-form-item label="今日心情">
+        <div class="mood-selector">
+          <div class="mood-item" :class="{ active: formData.mood === '😄' }" @click="formData.mood = '😄'">
+            <span class="emoji">😄</span><span class="label">开心</span>
+          </div>
+          <div class="mood-item" :class="{ active: formData.mood === '😐' }" @click="formData.mood = '😐'">
+            <span class="emoji">😐</span><span class="label">平静</span>
+          </div>
+          <div class="mood-item" :class="{ active: formData.mood === '😫' }" @click="formData.mood = '😫'">
+            <span class="emoji">😫</span><span class="label">疲惫</span>
+          </div>
+          <div class="mood-item" :class="{ active: formData.mood === '😡' }" @click="formData.mood = '😡'">
+            <span class="emoji">😡</span><span class="label">烦躁</span>
+          </div>
+        </div>
       </el-form-item>
-      <el-form-item label="体重(kg)">
-        <el-input-number v-model="formData.weight" :step="0.1" :min="0" @change="updateAdvice"></el-input-number>
+
+      <el-form-item label="体重 (kg)"><el-input-number v-model="formData.weight" :step="0.1" style="width: 100%"></el-input-number></el-form-item>
+      <el-form-item label="收缩压 (mmHg)"><el-input-number v-model="formData.sbp" :step="1" style="width: 100%"></el-input-number></el-form-item>
+      <el-form-item label="舒张压 (mmHg)"><el-input-number v-model="formData.dbp" :step="1" style="width: 100%"></el-input-number></el-form-item>
+      <el-form-item label="血糖 (mmol/L)"><el-input-number v-model="formData.sugar" :step="0.1" style="width: 100%"></el-input-number></el-form-item>
+      <el-form-item label="心率 (次/分)"><el-input-number v-model="formData.heart" :step="1" style="width: 100%"></el-input-number></el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitData" style="border-radius: 100px;">保存数据</el-button>
+      </span>
+    </template>
+  </el-dialog>
+
+  <!-- 饮食打卡弹窗 -->
+  <el-dialog v-model="dietDialogVisible" title="📷 饮食记录" width="90%" style="max-width: 400px; border-radius: 20px;">
+    <el-form :label-position="'top'">
+      <el-form-item label="餐次">
+        <el-radio-group v-model="dietForm.type">
+          <el-radio-button label="早餐"></el-radio-button>
+          <el-radio-button label="午餐"></el-radio-button>
+          <el-radio-button label="晚餐"></el-radio-button>
+          <el-radio-button label="加餐"></el-radio-button>
+        </el-radio-group>
       </el-form-item>
-      <el-form-item label="收缩压(mmHg)">
-        <el-input-number v-model="formData.sbp" :step="1" :min="0" @change="updateAdvice"></el-input-number>
+      <el-form-item label="吃了什么（简单描述）">
+        <el-input v-model="dietForm.desc" placeholder="例如：牛肉面、水煮菜..."></el-input>
       </el-form-item>
-      <el-form-item label="舒张压(mmHg)">
-        <el-input-number v-model="formData.dbp" :step="1" :min="0" @change="updateAdvice"></el-input-number>
-      </el-form-item>
-      <el-form-item label="血糖(mmol/L)">
-        <el-input-number v-model="formData.sugar" :step="0.1" :min="0" @change="updateAdvice"></el-input-number>
-      </el-form-item>
-      <el-form-item label="心率(次/分)">
-        <el-input-number v-model="formData.heart" :step="1" :min="0" @change="updateAdvice"></el-input-number>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="submitData">保存记录</el-button>
+      <el-form-item label="美食照片 (会自动压缩)">
+        <input type="file" accept="image/*" capture="environment" @change="handleImage" style="display: block; width: 100%;" />
+        <div v-if="dietForm.image" style="margin-top: 10px;">
+          <img :src="dietForm.image" style="width: 100%; border-radius: 8px; max-height: 200px; object-fit: cover;" />
+        </div>
       </el-form-item>
     </el-form>
-
-    <!-- BMI 展示与图形 -->
-    <div class="bmi-box" v-if="formData.height > 0 && formData.weight > 0">
-      <div class="bmi-info">
-        <span class="bmi-val" :style="{ color: bmiStatus.color }">{{ bmiValue }}</span>
-        <el-tag :type="bmiStatus.type" effect="dark" size="large">{{ bmiStatus.text }}</el-tag>
-      </div>
-      <div class="bmi-avatar">
-        <!-- 偏瘦 -->
-        <svg v-if="bmiStatus.text === '偏瘦'" viewBox="0 0 100 150">
-          <circle cx="50" cy="20" r="12" fill="#E6A23C"/>
-          <line x1="50" y1="32" x2="50" y2="80" stroke="#E6A23C" stroke-width="8" stroke-linecap="round"/>
-          <line x1="50" y1="45" x2="30" y2="70" stroke="#E6A23C" stroke-width="5" stroke-linecap="round"/>
-          <line x1="50" y1="45" x2="70" y2="70" stroke="#E6A23C" stroke-width="5" stroke-linecap="round"/>
-          <line x1="50" y1="80" x2="35" y2="130" stroke="#E6A23C" stroke-width="6" stroke-linecap="round"/>
-          <line x1="50" y1="80" x2="65" y2="130" stroke="#E6A23C" stroke-width="6" stroke-linecap="round"/>
-        </svg>
-        <!-- 正常 -->
-        <svg v-else-if="bmiStatus.text === '正常'" viewBox="0 0 100 150">
-          <circle cx="50" cy="22" r="13" fill="#67C23A"/>
-          <path d="M 35 40 Q 50 35 65 40 L 65 85 Q 50 88 35 85 Z" fill="#67C23A"/>
-          <line x1="35" y1="45" x2="20" y2="75" stroke="#67C23A" stroke-width="7" stroke-linecap="round"/>
-          <line x1="65" y1="45" x2="80" y2="75" stroke="#67C23A" stroke-width="7" stroke-linecap="round"/>
-          <path d="M 40 85 L 35 135" stroke="#67C23A" stroke-width="9" stroke-linecap="round"/>
-          <path d="M 60 85 L 65 135" stroke="#67C23A" stroke-width="9" stroke-linecap="round"/>
-        </svg>
-        <!-- 超重 -->
-        <svg v-else-if="bmiStatus.text === '超重'" viewBox="0 0 100 150">
-          <circle cx="50" cy="24" r="14" fill="#E6A23C"/>
-          <ellipse cx="50" cy="65" rx="25" ry="30" fill="#E6A23C"/>
-          <line x1="28" y1="50" x2="15" y2="85" stroke="#E6A23C" stroke-width="8" stroke-linecap="round"/>
-          <line x1="72" y1="50" x2="85" y2="85" stroke="#E6A23C" stroke-width="8" stroke-linecap="round"/>
-          <line x1="35" y1="90" x2="30" y2="135" stroke="#E6A23C" stroke-width="10" stroke-linecap="round"/>
-          <line x1="65" y1="90" x2="70" y2="135" stroke="#E6A23C" stroke-width="10" stroke-linecap="round"/>
-        </svg>
-        <!-- 肥胖 -->
-        <svg v-else viewBox="0 0 100 150">
-          <circle cx="50" cy="26" r="15" fill="#F56C6C"/>
-          <ellipse cx="50" cy="70" rx="35" ry="40" fill="#F56C6C"/>
-          <line x1="20" y1="55" x2="5" y2="90" stroke="#F56C6C" stroke-width="9" stroke-linecap="round"/>
-          <line x1="80" y1="55" x2="95" y2="90" stroke="#F56C6C" stroke-width="9" stroke-linecap="round"/>
-          <line x1="30" y1="100" x2="25" y2="140" stroke="#F56C6C" stroke-width="12" stroke-linecap="round"/>
-          <line x1="70" y1="100" x2="75" y2="140" stroke="#F56C6C" stroke-width="12" stroke-linecap="round"/>
-        </svg>
-      </div>
-    </div>
-  </el-card>
-
-  <!-- 智能建议卡片 -->
-  <el-card class="card" v-if="adviceList.length > 0">
-    <template #header><span>💡 专属饮食与运动建议</span></template>
-    <div :class="['advice-card', overallAdviceType]">
-      <div class="advice-title">
-        <el-icon><Bell /></el-icon> 基于你当前的数据，系统给出如下建议：
-      </div>
-      <ul class="advice-list">
-        <li v-for="(item, index) in adviceList" :key="index" style="margin-bottom: 6px;">{{ item }}</li>
-      </ul>
-    </div>
-  </el-card>
-
-  <el-card class="card">
-    <template #header>
-      <div class="card-header">
-        <span>📈 趋势图表</span>
-        <el-select v-model="chartType" size="small" style="width: 120px" @change="renderChart">
-          <el-option label="体重趋势" value="weight"></el-option>
-          <el-option label="血压趋势" value="bp"></el-option>
-        </el-select>
-      </div>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="dietDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveDiet" style="border-radius: 100px; background: #f472b6; border: none;">保存记录</el-button>
+      </span>
     </template>
-    <div id="mainChart" class="chart-container"></div>
-  </el-card>
+  </el-dialog>
+
 </div>
 
 <script>
-const { createApp, ref, onMounted, reactive, computed } = Vue;
-const { ElMessage } = ElementPlus;
+const { createApp, ref, onMounted, reactive, computed, watch, nextTick } = Vue;
+const { ElMessage, ElNotification } = ElementPlus;
+
+const QUOTES = [
+  "每一次记录，都是对身体的一次温柔呵护。🌸",
+  "你的坚持，时间看得见！今天也超棒的！✨",
+  "健康不是冲刺，而是一场美好的马拉松。🎀",
+  "好好吃饭，好好睡觉，好好爱自己。❤️",
+  "数据不会说谎，你的努力都在慢慢变成好结果。📈",
+  "又是打败惰性的一天，为你骄傲！🏆",
+  "今天的水喝够了吗？记得多喝水哦～ 💧",
+  "保持热爱，奔赴山海，健康第一！🌷"
+];
 
 createApp({
   setup() {
-    const formData = reactive({
-      height: 175, weight: 65.0, sbp: 120, dbp: 80, sugar: 5.5, heart: 75
-    });
+    const dialogVisible = ref(false);
+    const dietDialogVisible = ref(false);
     const chartType = ref('weight');
-    const adviceList = ref([]);
-    const overallAdviceType = ref('');
+    const currentQuote = ref(QUOTES[0]);
     let myChart = null;
-    let historyData = [{ date: '11-20', weight: 66.2, sbp: 125, dbp: 82 }, { date: '11-21', weight: 65.8, sbp: 118, dbp: 79 }];
+    
+    const defaultData = { height: 175, weight: 65.0, sbp: 120, dbp: 80, sugar: 5.5, heart: 75, water: 0, mood: '😐' };
+    let savedHistory = null;
+    try { savedHistory = localStorage.getItem('healthHistory'); } catch (e) {}
+    
+    let historyData = savedHistory ? JSON.parse(savedHistory) : [
+      { ...defaultData, time: '11-25', weight: 66.0, sbp: 125, water: 1500, mood: '😫' },
+      { ...defaultData, time: '11-26', weight: 65.5, sbp: 122, water: 2000, mood: '😄' }
+    ];
+    
+    const formData = reactive({ ...historyData[historyData.length - 1] });
+    delete formData.time; 
+    
+    const adviceList = ref([]);
+    const foodRecommendations = reactive({ recommend: [] });
+
+    const checkInDays = computed(() => historyData.map(d => d.time));
+
+    const calendarDays = computed(() => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDay = new Date(year, month, 1).getDay(); 
+      const offset = firstDay === 0 ? 6 : firstDay - 1; 
+
+      const days = [];
+      for (let i = 0; i < offset; i++) { days.push(null); }
+      for (let i = 1; i <= daysInMonth; i++) { days.push(i); }
+      return days;
+    });
+
+    const isToday = (day) => {
+      if (!day) return false;
+      return new Date().getDate() === day;
+    };
+
+    const getMoodForDay = (day) => {
+      if (!day) return null;
+      const now = new Date();
+      const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(day).padStart(2, '0');
+      const dateStr = `${monthStr}-${dayStr}`;
+      const record = historyData.find(d => d.time === dateStr || d.time === `${now.getMonth()+1}-${dayStr}`);
+      return record ? record.mood : null;
+    };
+
+    const dietList = ref([]);
+    let savedDiet = null;
+    try { savedDiet = localStorage.getItem('dietList'); } catch (e) {}
+    if (savedDiet) dietList.value = JSON.parse(savedDiet);
+
+    const dietForm = reactive({ type: '午餐', desc: '', image: '' });
 
     const bmiValue = computed(() => {
       if (!formData.height || !formData.weight) return 0;
-      const h = formData.height / 100;
-      return (formData.weight / (h * h)).toFixed(1);
+      return (formData.weight / Math.pow(formData.height / 100, 2)).toFixed(1);
     });
 
     const bmiStatus = computed(() => {
       const b = parseFloat(bmiValue.value);
-      if (b < 18.5) return { text: '偏瘦', type: 'warning', color: '#E6A23C' };
-      if (b >= 18.5 && b < 24) return { text: '正常', type: 'success', color: '#67C23A' };
-      if (b >= 24 && b < 28) return { text: '超重', type: 'warning', color: '#E6A23C' };
-      return { text: '肥胖', type: 'danger', color: '#F56C6C' };
+      if (b < 18.5) return { text: '偏瘦', type: 'warning', color: '#f59e0b' };
+      if (b >= 18.5 && b < 24) return { text: '正常', type: 'success', color: '#34c759' };
+      if (b >= 24 && b < 28) return { text: '超重', type: 'warning', color: '#f59e0b' };
+      return { text: '肥胖', type: 'danger', color: '#ef4444' };
     });
 
-    // 🧠 核心逻辑：健康建议引擎
-    const updateAdvice = () => {
-      let advices = [];
-      let isDanger = false;
-      let isWarning = false;
-      const b = parseFloat(bmiValue.value);
-
-      // 1. BMI & 体重建议
-      if (b > 0 && b < 18.5) {
-        advices.push("【饮食】偏瘦建议：增加优质蛋白（鸡蛋、牛奶、瘦肉）和碳水摄入，少食多餐，避免过度节食。");
-        advices.push("【运动】运动建议：减少长时间有氧运动，增加抗阻力训练（如举铁、深蹲）来增加肌肉量。");
-        isWarning = true;
-      } else if (b >= 24 && b < 28) {
-        advices.push("【饮食】超重建议：控制总热量，减少精米面和高糖食物，多吃蔬菜和粗粮，保持适当饱腹感。");
-        advices.push("【运动】运动建议：每周安排 3-4 次中等强度有氧（如快走、慢跑、游泳），每次 40 分钟以上。");
-        isWarning = true;
-      } else if (b >= 28) {
-        advices.push("【饮食】肥胖建议：严格执行低脂低糖饮食，建议先咨询营养科医生制定详细食谱。");
-        advices.push("【运动】运动建议：初期避免剧烈跑跳以保护膝盖，建议从快步走、游泳或骑车开始，循序渐进。");
-        isDanger = true;
-      } else if (b >= 18.5 && b < 24) {
-        advices.push("【饮食】体重正常：保持目前均衡饮食，多喝水，规律作息。");
-        advices.push("【运动】运动建议：保持每周 150 分钟中等强度运动，维持良好体型。");
+    const changeWater = (amount) => {
+      const newVal = formData.water + amount;
+      formData.water = newVal < 0 ? 0 : newVal;
+      if (amount > 0 && formData.water >= 2000) {
+        currentQuote.value = "太牛了！今日喝水目标达成！💧";
       }
-
-      // 2. 血压建议
-      if (formData.sbp >= 140 || formData.dbp >= 90) {
-        advices.push("【饮食】血压偏高：务必严格控制盐分摄入（每天<5g），少吃腌制食品，多吃含钾食物（香蕉、菠菜）。");
-        advices.push("【运动】血压偏高：避免憋气发力的运动（如大重量举铁），推荐太极拳、慢走等舒缓运动。");
-        isDanger = true;
-      } else if (formData.sbp >= 130 || formData.dbp >= 85) {
-        advices.push("【血压】处于正常高值边缘：注意清淡饮食，控制情绪，少熬夜。");
-        isWarning = true;
-      }
-
-      // 3. 血糖建议
-      if (formData.sugar > 6.1) {
-        advices.push("【饮食】血糖偏高：严格控制主食量，用粗粮替换一半白米饭，避免饮用含糖饮料，先吃菜再吃饭。");
-        advices.push("【运动】血糖偏高：建议餐后 1 小时进行 20-30 分钟散步，有助于平稳餐后血糖。");
-        isDanger = true;
-      }
-
-      // 4. 心率建议
-      if (formData.heart > 100) {
-        advices.push("【心率】心动过速：建议静坐休息后复测，如持续偏高请排查是否熬夜、喝浓茶咖啡或存在健康问题。");
-        isWarning = true;
-      } else if (formData.heart < 60) {
-        advices.push("【心率】心动过缓：如果你不是专业运动员，且伴随头晕乏力，建议去医院心内科做个心电图检查。");
-        isWarning = true;
-      }
-
-      adviceList.value = advices;
-      overallAdviceType.value = isDanger ? 'danger' : (isWarning ? 'warning' : '');
     };
 
-    const submitData = () => {
-      ElMessage.success('记录保存成功！');
-      const today = new Date().toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace('/', '-');
-      historyData.push({ date: today, ...formData });
-      renderChart();
+    const updateAdvice = () => {
+      let advices = []; let rec = []; const b = parseFloat(bmiValue.value);
+      if (b > 0 && b < 18.5) { advices.push("体型偏瘦，建议增加抗阻力训练。"); rec.push({ emoji: '🥩', name: '牛肉' }, { emoji: '🥚', name: '鸡蛋' }); } 
+      else if (b >= 24) { advices.push("体重超标，核心是制造热量缺口。"); rec.push({ emoji: '🥦', name: '西兰花' }, { emoji: '🍗', name: '鸡胸肉' }); } 
+      else { advices.push("体重标准，继续保持。"); }
+      if (formData.sbp >= 140 || formData.dbp >= 90) { advices.push("血压偏高！请严格控盐。"); rec.push({ emoji: '🍌', name: '香蕉补钾' }, { emoji: '🥬', name: '绿叶菜' }); }
+      if (formData.sugar > 6.1) { advices.push("血糖偏高！注意进餐顺序。"); rec.push({ emoji: '🥒', name: '黄瓜' }, { emoji: '🍅', name: '番茄' }); }
+      if (formData.heart > 100) advices.push("心率偏快，建议休息复测。");
+      if (formData.water < 1500) advices.push("今日喝水偏少，建议多喝温水促进代谢。");
+      adviceList.value = advices;
+      foodRecommendations.recommend = Array.from(new Set(rec.map(e => JSON.stringify(e)))).map(e => JSON.parse(e));
+    };
+
+    const openHealthDialog = (day = null) => {
+      if (day) {
+        const now = new Date();
+        const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
+        const dateStr = `${monthStr}-${dayStr}`;
+        const record = historyData.find(d => d.time === dateStr || d.time === `${now.getMonth()+1}-${dayStr}`);
+        if (record) {
+          Object.assign(formData, record);
+          delete formData.time;
+        } else {
+          formData.mood = '😐'; 
+        }
+      }
+      dialogVisible.value = true;
+    };
+
+    const openDietDialog = () => {
+      dietForm.type = '午餐'; dietForm.desc = ''; dietForm.image = '';
+      dietDialogVisible.value = true;
+    };
+
+    const handleImage = (event) => {
+      const file = event.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image(); img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 300;
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          dietForm.image = canvas.toDataURL('image/jpeg', 0.6);
+        };
+      };
+    };
+
+    const saveDiet = () => {
+      if (!dietForm.desc) { ElMessage.warning('请写一下吃了什么哦'); return; }
+      const now = new Date();
+      const timeStr = `${now.getMonth()+1}-${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      const newRecord = { id: Date.now(), type: dietForm.type, desc: dietForm.desc, image: dietForm.image, time: timeStr };
+      dietList.value.unshift(newRecord);
+      if (dietList.value.length > 10) dietList.value.pop();
+      
+      try { localStorage.setItem('dietList', JSON.stringify(dietList.value)); } catch (e) {}
+      dietDialogVisible.value = false;
+      
+      currentQuote.value = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+      ElNotification({ title: '记录成功！', message: currentQuote.value, type: 'success', duration: 3000 });
+    };
+
+    const delDiet = (id) => {
+      dietList.value = dietList.value.filter(item => item.id !== id);
+      try { localStorage.setItem('dietList', JSON.stringify(dietList.value)); } catch (e) {}
     };
 
     const renderChart = () => {
-      if (!myChart) myChart = echarts.init(document.getElementById('mainChart'));
-      let series = [];
-      if (chartType.value === 'weight') {
-        series = [{ name: '体重', type: 'line', smooth: true, data: historyData.map(d => d.weight), itemStyle: { color: '#67C23A' } }];
-      } else {
-        series = [
-          { name: '收缩压', type: 'line', data: historyData.map(d => d.sbp), itemStyle: { color: '#F56C6C' } },
-          { name: '舒张压', type: 'line', data: historyData.map(d => d.dbp), itemStyle: { color: '#E6A23C' } }
-        ];
-      }
-      myChart.setOption({
-        tooltip: { trigger: 'axis' },
-        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-        xAxis: { type: 'category', boundaryGap: false, data: historyData.map(d => d.date) },
-        yAxis: { type: 'value' },
-        series: series
-      }, true);
+      nextTick(() => {
+        const dom = document.getElementById('mainChart');
+        if (!dom) return;
+        if (!myChart) myChart = echarts.init(dom);
+
+        const xData = historyData.map(d => d.time);
+        let series = [];
+
+        // 粉色主题图表配色
+        if (chartType.value === 'weight') {
+          series = [{ name: '体重(kg)', type: 'line', smooth: true, data: historyData.map(d => d.weight), itemStyle: { color: '#f472b6' }, areaStyle: { color: 'rgba(244, 114, 182, 0.2)' } }];
+        } else if (chartType.value === 'bp') {
+          series = [
+            { name: '收缩压', type: 'line', smooth: true, data: historyData.map(d => d.sbp), itemStyle: { color: '#db2777' } },
+            { name: '舒张压', type: 'line', smooth: true, data: historyData.map(d => d.dbp), itemStyle: { color: '#fbcfe8' } }
+          ];
+        } else if (chartType.value === 'sugar') {
+          series = [{ name: '血糖(mmol/L)', type: 'line', smooth: true, data: historyData.map(d => d.sugar), itemStyle: { color: '#f59e0b' }, areaStyle: { color: 'rgba(245, 158, 11, 0.2)' } }];
+        } else if (chartType.value === 'water') {
+          series = [{ name: '喝水(ml)', type: 'bar', data: historyData.map(d => d.water), itemStyle: { color: '#60a5fa', borderRadius: [6,6,0,0] } }]; 
+        }
+
+        myChart.setOption({
+          tooltip: { trigger: 'axis' }, legend: { bottom: 0 },
+          grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+          xAxis: { type: 'category', boundaryGap: chartType.value === 'water', data: xData },
+          yAxis: { type: 'value', scale: true },
+          series: series
+        }, true);
+      });
     };
 
-    onMounted(() => {
-      updateAdvice();
-      renderChart();
+    watch(formData, () => { updateAdvice(); }, { deep: true });
+
+    const submitData = () => {
+      const now = new Date();
+      const timeStr = `${now.getMonth()+1}-${now.getDate()}`;
+      
+      const todayIndex = historyData.findIndex(d => d.time === timeStr);
+      if (todayIndex !== -1) {
+        historyData[todayIndex] = { ...formData, time: timeStr };
+      } else {
+        historyData.push({ ...formData, time: timeStr });
+      }
+
+      try { localStorage.setItem('healthHistory', JSON.stringify(historyData)); } catch (e) {}
+      updateAdvice(); renderChart();
+      dialogVisible.value = false;
+      
+      currentQuote.value = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+      ElNotification({
+        title: `打卡成功！今天心情是 ${formData.mood}`,
+        message: currentQuote.value,
+        type: 'success',
+        position: 'bottom-right',
+        duration: 4000
+      });
+    };
+
+    const exportData = () => {
+      const fullData = { health: historyData, diet: dietList.value };
+      const dataStr = JSON.stringify(fullData, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `health_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    };
+
+    const triggerImport = () => { document.getElementById('fileInput').click(); };
+    const importData = (event) => {
+      const file = event.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.health && Array.isArray(imported.health)) {
+            historyData = imported.health;
+            Object.assign(formData, historyData[historyData.length - 1]);
+            delete formData.time;
+            try { localStorage.setItem('healthHistory', JSON.stringify(historyData)); } catch (err) {}
+          }
+          if (imported.diet && Array.isArray(imported.diet)) {
+            dietList.value = imported.diet;
+            try { localStorage.setItem('dietList', JSON.stringify(dietList.value)); } catch (err) {}
+          }
+          ElMessage.success('数据恢复成功！'); 
+          updateAdvice(); renderChart();
+        } catch (err) { ElMessage.error('文件格式错误！'); }
+      };
+      reader.readAsText(file); event.target.value = ''; 
+    };
+
+    onMounted(() => { 
+      updateAdvice(); renderChart();
+      currentQuote.value = QUOTES[Math.floor(Math.random() * QUOTES.length)];
       window.addEventListener('resize', () => myChart && myChart.resize());
     });
 
-    return { formData, chartType, adviceList, overallAdviceType, updateAdvice, submitData, renderChart, bmiValue, bmiStatus };
+    return { 
+      dialogVisible, dietDialogVisible, formData, adviceList, foodRecommendations, bmiValue, bmiStatus, 
+      submitData, exportData, triggerImport, importData, chartType, renderChart, changeWater,
+      dietList, dietForm, openHealthDialog, openDietDialog, handleImage, saveDiet, delDiet,
+      calendarDays, isToday, getMoodForDay, checkInDays, currentQuote
+    };
   }
 }).use(ElementPlus).mount('#app');
 </script>
